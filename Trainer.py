@@ -40,9 +40,9 @@ class Trainer:
         print(args.dataset + " " + args.group + " " + args.dataset + " dataset " + "split: " + args.split)
 
         if args.upload is True:
-            wandb.init(project=args.project, group= args.group,
+            wandb.init(project=args.project, group=args.group,
                        name="split: " + args.split,
-                       reinit=True)
+                       reinit=True, entity="rotem_bz")
             delattr(args, 'split')
             wandb.config.update(args)
 

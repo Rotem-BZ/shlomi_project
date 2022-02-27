@@ -18,15 +18,15 @@ class MT_RNN_dp(nn.Module):
         # with dimensionality hidden_dim.
         if rnn_type == "LSTM":
             self.rnn = nn.LSTM(input_dim, hidden_dim, batch_first=True, bidirectional=bidirectional,
-                                 num_layers=num_layers)
+                               num_layers=num_layers)
         elif rnn_type == "GRU":
             self.rnn = nn.GRU(input_dim, hidden_dim, batch_first=True, bidirectional=bidirectional,
-                                 num_layers=num_layers)
+                              num_layers=num_layers)
         else:
             raise NotImplemented
         # The linear layer that maps from hidden state space to tag space
         self.output_heads = nn.ModuleList([copy.deepcopy(
-            nn.Linear(hidden_dim * 2 if bidirectional else hidden_dim, num_classes_list[s]) )
+            nn.Linear(hidden_dim * 2 if bidirectional else hidden_dim, num_classes_list[s]))
                                  for s in range(len(num_classes_list))])
 
 
