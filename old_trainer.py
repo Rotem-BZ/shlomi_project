@@ -10,6 +10,7 @@ from termcolor import colored, cprint
 
 from metrics import*
 import wandb
+wandb.login()
 from datetime import datetime
 import tqdm
 
@@ -28,7 +29,7 @@ class Trainer:
         self.ce = nn.CrossEntropyLoss(ignore_index=-100)
         self.num_classes_list = num_classes_list
         self.task =task
-        self.weights = [0.15, 0.15, 1] if task == 'multi-taks' else [1]
+        self.weights = [1, 0, 1]
 
 
     def train(self, save_dir, batch_gen, num_epochs, batch_size, learning_rate, eval_dict, args):
@@ -54,6 +55,9 @@ class Trainer:
         for epoch in range(num_epochs):
             pbar = tqdm.tqdm(total=number_of_batches)
             epoch_loss = 0
+            correct1 = 0
+            total1 = 0
+
             n_tasks = 3 if self.task == 'multi-taks' else 1
             correct = np.zeros(n_tasks)
             total = np.zeros(n_tasks)
@@ -67,22 +71,22 @@ class Trainer:
                 optimizer.zero_grad()
                 lengths = torch.sum(mask[:, 0, :], dim=1).to(dtype=torch.int64).to(device='cpu')
                 predictions1 = self.model(batch_input, lengths)
-                # predictions1 = (predictions1[0] * mask).unsqueeze_(0)
-                predictions1 = [(p * mask) for p in predictions1]
 
                 loss = 0
-                for p, target, class_size, weight in zip(predictions1, batch_target_gestures, self.num_classes_list, self.weights):
-                    loss += weight * self.ce(p.transpose(2, 1).contiguous().view(-1, class_size), target.view(-1))
+                for i, (p, target) in enumerate(zip(predictions1, batch_target_gestures)):
+                    p = (p * mask).unsqueeze_(0)
+                    loss += self.weights[i] * self.ce(p.transpose(2, 1).contiguous().view(-1, self.num_classes_list[i]),
+                                    target.view(-1))
 
 
                 epoch_loss += loss.item()
                 loss.backward()
                 optimizer.step()
-                _, predicted1 = torch.max(predictions1[-1].data, 1)
-                for i in range(len(lengths)):
-                    correct[-1] += (predicted1[i][:lengths[i]] == batch_target_gestures[-1][i][
-                                                               :lengths[i]]).float().sum().item()
-                    total[-1] += lengths[i]
+                for i, (p, target) in enumerate(zip(predictions1, batch_target_gestures)):
+                    _, p = torch.max(p.data, 1)
+                    for j in range(len(lengths)):
+                        correct[i] += (p[j][:lengths[j]] == target[j][:lengths[j]]).float().sum().item()
+                        total[i] += lengths[j]
 
                 pbar.update(1)
 
@@ -97,9 +101,21 @@ class Trainer:
                                                                                                       epoch_loss / len(
                                                                                                           batch_gen.list_of_train_examples),
                                                                                                       float(
-                                                                                                          correct[-1]) / total[-1]))
-            train_results = {"epoch": epoch, "train loss": epoch_loss / len(batch_gen.list_of_train_examples),
-                             "train acc": float(correct[-1]) / total[-1]}
+                                                                                                          correct[0]) / total[0]))
+            # print(colored(dt_string, 'green', attrs=['bold']) + "  " + "[epoch %d]: train loss = %f,"
+            #                                                            "   train acc left = %f, train acc right = %f"
+            #                                                            ", train acc gestures = %f" % (epoch + 1,
+            #                                                                                           epoch_loss / len(
+            #                                                                                               batch_gen.list_of_train_examples),
+            #                                                                                           float(
+            #                                                                                               correct[0]) / total[0],
+            #                                                                                           correct[1] / total[1],
+            #                                                                                           correct[2] / total[2]))
+            # train_results = {"epoch": epoch, "train loss": epoch_loss / len(batch_gen.list_of_train_examples),
+            #                  "train acc": float(correct1) / total1}
+            train_results = {"epoch": epoch, "train loss": epoch_loss / len(batch_gen.list_of_train_examples)}
+            for i in range(n_tasks):
+                train_results['train acc ' + str(i)] = float(correct[i]) / total[i]
 
             if args.upload:
                 wandb.log(train_results)
@@ -138,7 +154,7 @@ class Trainer:
                 input_x.unsqueeze_(0)
                 input_x = input_x.to(device)
                 predictions1 = self.model(input_x, torch.tensor([features.shape[1]]))
-                predictions1 = predictions1[-1].unsqueeze_(0)
+                predictions1 = predictions1[0].unsqueeze_(0)
                 predictions1 = torch.nn.Softmax(dim=2)(predictions1)
 
                 _, predicted1 = torch.max(predictions1[-1].data, 1)
@@ -161,6 +177,7 @@ class Trainer:
 
             self.model.train()
             return results
+
 
 
 

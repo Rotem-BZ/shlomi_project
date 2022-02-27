@@ -199,11 +199,14 @@ class BatchGenerator(object):
             length_of_sequences = list(map(len, batch_target_gestures))
             batch_input_tensor = torch.zeros(len(batch_input), np.shape(batch_input[0])[0], max(length_of_sequences), dtype=torch.float)
             batch_target_tensor = torch.ones(len(batch_input), max(length_of_sequences), dtype=torch.long)*(-100)
-            mask = torch.zeros(len(batch_input), self.num_classes_gestures, max(length_of_sequences), dtype=torch.float)
+            # mask = torch.zeros(len(batch_input), self.num_classes_gestures, max(length_of_sequences), dtype=torch.float)
+            mask = torch.zeros(len(batch_input), 1, max(length_of_sequences), dtype=torch.float)
             for i in range(len(batch_input)):
                 batch_input_tensor[i, :, :np.shape(batch_input[i])[1]] = torch.from_numpy(batch_input[i][:,:batch_input_tensor.shape[2]])
                 batch_target_tensor[i, :np.shape(batch_target_gestures[i])[0]] = torch.from_numpy(batch_target_gestures[i])
-                mask[i, :, :np.shape(batch_target_gestures[i])[0]] = torch.ones(self.num_classes_gestures, np.shape(batch_target_gestures[i])[0])
+                # mask[i, :, :np.shape(batch_target_gestures[i])[0]] = torch.ones(self.num_classes_gestures, np.shape(batch_target_gestures[i])[0])
+                mask[i, :, :np.shape(batch_target_gestures[i])[0]] = torch.ones(1,
+                                                                                np.shape(batch_target_gestures[i])[0])
 
             return batch_input_tensor, batch_target_tensor, mask
 
@@ -245,7 +248,8 @@ class BatchGenerator(object):
             batch_target_tensor_right = torch.ones(len(batch_input), max(length_of_sequences), dtype=torch.long) * (-100)
             batch_target_tensor_gestures = torch.ones(len(batch_input), max(length_of_sequences), dtype=torch.long)*(-100)
 
-            mask = torch.zeros(len(batch_input), self.num_classes_gestures, max(length_of_sequences), dtype=torch.float)
+            # mask = torch.zeros(len(batch_input), self.num_classes_gestures, max(length_of_sequences), dtype=torch.float)
+            mask = torch.zeros(len(batch_input), 1, max(length_of_sequences), dtype=torch.float)
 
 
             for i in range(len(batch_input)):
@@ -254,6 +258,8 @@ class BatchGenerator(object):
                 batch_target_tensor_right[i, :np.shape(batch_target_right[i])[0]] = torch.from_numpy(batch_target_right[i][:batch_target_tensor_right.shape[1]])
                 batch_target_tensor_gestures[i, :np.shape(batch_target_gestures[i])[0]] = torch.from_numpy(batch_target_gestures[i][:batch_target_tensor_gestures.shape[1]])
                 # mask[i, :, :np.shape(batch_target_gestures[i])[0]] = torch.ones(self.num_classes_gestures, np.shape(batch_target_gestures[i])[0])
+                mask[i, :, :np.shape(batch_target_gestures[i])[0]] = torch.ones(1,
+                                                                                np.shape(batch_target_gestures[i])[0])
 
 
             return batch_input_tensor, batch_target_tensor_left ,batch_target_tensor_right,batch_target_tensor_gestures, mask
