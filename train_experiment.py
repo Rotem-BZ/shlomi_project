@@ -97,8 +97,8 @@ for split_num in list_of_splits:
     features_path = "/datashare/"+args.dataset+"/kinematics_npy/"
 
     gt_path_gestures = "/datashare/"+args.dataset+"/transcriptions_gestures/"
-    gt_path_tools_left = "/datashare/"+args.dataset+"/transcriptions_tools_left/"
-    gt_path_tools_right = "/datashare/"+args.dataset+"/transcriptions_tools_right/"
+    gt_path_tools_left = "/datashare/"+args.dataset+"/transcriptions_tools_left_new/"
+    gt_path_tools_right = "/datashare/"+args.dataset+"/transcriptions_tools_right_new/"
 
     mapping_gestures_file = "/datashare/"+args.dataset+"/mapping_gestures.txt"
     mapping_tool_file = "/datashare/"+args.dataset+"/mapping_tools.txt"
