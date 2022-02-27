@@ -7,11 +7,13 @@ import os
 import pandas as pd
 from scipy.stats import norm
 
-
+from PIL import Image
+from torchvision import transforms
+from tqdm import tqdm
 
 
 class BatchGenerator(object):
-    def __init__(self, num_classes_gestures,num_classes_tools, actions_dict_gestures,actions_dict_tools,features_path,split_num,folds_folder ,gt_path_gestures=None, gt_path_tools_left=None, gt_path_tools_right=None, sample_rate=1,normalization="None",task="gestures"):
+    def __init__(self, num_classes_gestures,num_classes_tools, actions_dict_gestures,actions_dict_tools,features_path,split_num,folds_folder,frames_folder,gt_path_gestures=None, gt_path_tools_left=None, gt_path_tools_right=None, sample_rate=1,normalization="None",task="gestures"):
         """
         
         :param num_classes_gestures: 
@@ -31,6 +33,8 @@ class BatchGenerator(object):
         self.task =task
         self.normalization = normalization
         self.folds_folder = folds_folder
+        self.frames_folder = frames_folder
+        self.frames_files = os.listdir(frames_folder)
         self.split_num = split_num
         self.list_of_train_examples = list()
         self.list_of_valid_examples = list()
@@ -108,9 +112,33 @@ class BatchGenerator(object):
         batch_target_gestures = []
         batch_target_left = []
         batch_target_right = []
+        convert_tensor = transforms.PILToTensor()
 
         for seq in batch:
-            features = np.load(self.features_path + seq.split('.')[0] + '.npy')
+            # reps = [len([t for t in self.frames_files if t.startswith(name)]) for name in set(['_'.join(s.split('_')[:2]) for s in self.frames_files])]
+            # assert all([x == 2 for x in reps])
+            seq_name = seq.split('.')[0]
+            features = np.load(self.features_path + seq_name + '.npy')
+
+            # side video setup
+            side_video_path = os.path.join(self.frames_folder, seq_name + '_side')
+            side_frames_names = sorted(os.listdir(side_video_path))
+            side_frames_vecs = []
+            for name in tqdm(side_frames_names):
+                img = Image.open(os.path.join(side_video_path, name))
+                side_frames_vecs.append(convert_tensor(img))
+            side_data = torch.concat(side_frames_vecs)
+
+            # top video setup
+            top_video_path = os.path.join(self.frames_folder, seq_name + '_top')
+            top_frames_names = sorted(os.listdir(top_video_path))
+            top_frames_vecs = []
+            for name in tqdm(top_frames_names):
+                img = Image.open(os.path.join(top_video_path, name))
+                top_frames_vecs.append(convert_tensor(img))
+            top_data = torch.concat(top_frames_vecs)
+
+
 
             if self.normalization == "Min-max":
                 numerator =features.T - self.min

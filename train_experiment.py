@@ -97,6 +97,7 @@ for split_num in list_of_splits:
 
     folds_folder = "/datashare/"+args.dataset+"/folds"
     features_path = "/datashare/"+args.dataset+"/kinematics_npy/"
+    frames_folder = "/datashare/" + args.dataset + "/frames"
 
     gt_path_gestures = "/datashare/"+args.dataset+"/transcriptions_gestures/"
     gt_path_tools_left = "/datashare/"+args.dataset+"/transcriptions_tools_left_new/"
@@ -132,7 +133,7 @@ for split_num in list_of_splits:
 
     trainer = Trainer(features_dim, num_classes_list,hidden_dim=hidden_dim,dropout=dropout,num_layers=num_layers, offline_mode=offline_mode,task=args.task,device=device,network=args.network,debagging=debagging)
 
-    batch_gen = BatchGenerator(num_classes_gestures,num_classes_tools, actions_dict_gestures,actions_dict_tools,features_path,split_num,folds_folder,gt_path_gestures, gt_path_tools_left, gt_path_tools_right, sample_rate=sample_rate,normalization=args.normalization,task=args.task)
+    batch_gen = BatchGenerator(num_classes_gestures,num_classes_tools, actions_dict_gestures,actions_dict_tools,features_path,split_num,folds_folder,frames_folder,gt_path_gestures, gt_path_tools_left, gt_path_tools_right, sample_rate=sample_rate,normalization=args.normalization,task=args.task)
     eval_dict ={"features_path":features_path,"actions_dict_gestures": actions_dict_gestures, "actions_dict_tools":actions_dict_tools, "device":device, "sample_rate":sample_rate,"eval_rate":eval_rate,
                 "gt_path_gestures":gt_path_gestures, "gt_path_tools_left":gt_path_tools_left, "gt_path_tools_right":gt_path_tools_right,"task":args.task}
     eval_results, train_results = trainer.train(model_dir, batch_gen, num_epochs=num_epochs, batch_size=bz, learning_rate=lr,eval_dict=eval_dict,args=args)
