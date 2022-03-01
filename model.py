@@ -30,7 +30,7 @@ class MT_RNN_dp(nn.Module):
                                  for s in range(len(num_classes_list))])
 
 
-    def forward(self, rnn_inpus, lengths):
+    def forward(self, rnn_inpus, side_inputs, top_inputs, lengths):
         outputs=[]
         rnn_inpus = rnn_inpus.permute(0, 2, 1)
         rnn_inpus=self.dropout(rnn_inpus)

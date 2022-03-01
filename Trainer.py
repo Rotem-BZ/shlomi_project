@@ -13,6 +13,8 @@ import wandb
 from datetime import datetime
 import tqdm
 
+from batch_gen import BatchGenerator
+
 
 class Trainer:
     def __init__(self, dim, num_classes_list,hidden_dim=64,dropout=0.4,num_layers=3, offline_mode=True, task="gestures", device="cuda",
@@ -28,7 +30,7 @@ class Trainer:
         self.ce = nn.CrossEntropyLoss(ignore_index=-100)
         self.num_classes_list = num_classes_list
         self.task =task
-        self.weights = [0.15, 0.15, 1] if task == 'multi-taks' else [1]
+        self.weights = [0, 0, 1] if task == 'multi-taks' else [1]
 
 
     def train(self, save_dir, batch_gen, num_epochs, batch_size, learning_rate, eval_dict, args):
@@ -59,14 +61,14 @@ class Trainer:
             total = np.zeros(n_tasks)
 
             while batch_gen.has_next():
-                batch_input, *batch_target_gestures, mask = batch_gen.next_batch(batch_size)
+                batch_input, side_input, top_input, *batch_target_gestures, mask = batch_gen.next_batch(batch_size)
                 for i in range(len(batch_target_gestures)):
                     batch_target_gestures[i] = batch_target_gestures[i].to(self.device)
                 batch_input, mask = batch_input.to(self.device), mask.to(self.device)
 
                 optimizer.zero_grad()
                 lengths = torch.sum(mask[:, 0, :], dim=1).to(dtype=torch.int64).to(device='cpu')
-                predictions1 = self.model(batch_input, lengths)
+                predictions1 = self.model(batch_input, side_input, top_input, lengths)
                 # predictions1 = (predictions1[0] * mask).unsqueeze_(0)
                 predictions1 = [(p * mask) for p in predictions1]
 
@@ -132,12 +134,14 @@ class Trainer:
 
             for seq in list_of_vids:
                 # print vid
-                features = np.load(features_path + seq.split('.')[0] + '.npy')
-                features = features[:, ::sample_rate]
-                input_x = torch.tensor(features, dtype=torch.float)
-                input_x.unsqueeze_(0)
-                input_x = input_x.to(device)
-                predictions1 = self.model(input_x, torch.tensor([features.shape[1]]))
+                # features = np.load(features_path + seq.split('.')[0] + '.npy')
+                # features = features[:, ::sample_rate]
+                # input_x = torch.tensor(features, dtype=torch.float)
+                # input_x.unsqueeze_(0)
+                input_x = BatchGenerator.get_data(seq, features_path, BatchGenerator.saved_video_tensors_path, sample_rate)
+                # input_x = input_x.to(device)
+                input_x = [a.to(device) for a in input_x[:-1]] + [input_x[-1]]
+                predictions1 = self.model(*input_x)
                 predictions1 = predictions1[-1].unsqueeze_(0)
                 predictions1 = torch.nn.Softmax(dim=2)(predictions1)
 
