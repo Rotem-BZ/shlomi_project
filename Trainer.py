@@ -59,15 +59,19 @@ class Trainer:
             n_tasks = 3 if self.task == 'multi-taks' else 1
             correct = np.zeros(n_tasks)
             total = np.zeros(n_tasks)
+            iterations = 6
+            iteration = 0
 
             while batch_gen.has_next():
                 batch_input, side_input, top_input, *batch_target_gestures, mask = batch_gen.next_batch(batch_size)
                 for i in range(len(batch_target_gestures)):
                     batch_target_gestures[i] = batch_target_gestures[i].to(self.device)
-                batch_input, mask = batch_input.to(self.device), mask.to(self.device)
+                batch_input, side_input, top_input, mask = batch_input.to(self.device), side_input.to(self.device),\
+                                                           top_input.to(self.device), mask.to(self.device)
 
                 optimizer.zero_grad()
                 lengths = torch.sum(mask[:, 0, :], dim=1).to(dtype=torch.int64).to(device='cpu')
+                # print(f"amount of frames: {batch_input.shape}")
                 predictions1 = self.model(batch_input, side_input, top_input, lengths)
                 # predictions1 = (predictions1[0] * mask).unsqueeze_(0)
                 predictions1 = [(p * mask) for p in predictions1]

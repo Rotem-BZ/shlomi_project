@@ -23,7 +23,7 @@ parser.add_argument('--lr', default=0.00316227766, type=float)
 # parser.add_argument('--num_epochs', default=40, type=int)
 parser.add_argument('--num_epochs', default=20, type=int)
 parser.add_argument('--eval_rate', default=1, type=int)
-parser.add_argument('--batch_size',default =5, type=int )
+parser.add_argument('--batch_size',default =1, type=int )
 
 parser.add_argument('--dropout', default=0.4, type=float)
 parser.add_argument('--num_layers',default =3, type=int )

@@ -51,5 +51,5 @@ def pad_to_window_size_local(input_ids: torch.Tensor, attention_mask: torch.Tens
     padding_len = (w - seqlen % w) % w
     input_ids = F.pad(input_ids.permute(0, 2, 1), (0, padding_len), value=pad_token_id).permute(0, 2, 1)
     attention_mask = F.pad(attention_mask, (0, padding_len), value=False)  # no attention on the padding tokens
-    position_ids = F.pad(position_ids, (1, padding_len), value=False)  # no attention on the padding tokens
+    position_ids = F.pad(position_ids, (0, padding_len), value=False)  # no attention on the padding tokens
     return input_ids, attention_mask, position_ids
