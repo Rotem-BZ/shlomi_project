@@ -8,10 +8,12 @@ import pandas as pd
 from scipy.stats import norm
 
 import time
+from torchvision import transforms
 
 
 class BatchGenerator(object):
     saved_video_tensors_path = '/home/student/code-rotem/videos_dir/'
+    img_normalizer = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     def __init__(self, num_classes_gestures,num_classes_tools, actions_dict_gestures,actions_dict_tools,features_path,split_num,folds_folder,frames_folder,gt_path_gestures=None, gt_path_tools_left=None, gt_path_tools_right=None, sample_rate=1,normalization="None",task="gestures"):
         """
         
@@ -49,6 +51,8 @@ class BatchGenerator(object):
         self.sample_rate = sample_rate
         self.read_data()
         self.normalization_params_read()
+
+        # self.list_of_train_examples = self.list_of_train_examples[:1]   # overfit assertion
 
 
     def normalization_params_read(self):
@@ -104,7 +108,7 @@ class BatchGenerator(object):
 ##### this is supports one and two heads and 3 heads #############
 
     @staticmethod
-    def get_data(seq: str, features_path, saved_video_tensors_path, sample_rate):
+    def get_data(seq: str, features_path, saved_video_tensors_path, sample_rate, img_normalizer):
         """
         return features and video tensors for given sequence.
         :param seq: name of sequence file
@@ -113,7 +117,9 @@ class BatchGenerator(object):
         seq_name = seq.split('.')[0]
         features = np.load(features_path + seq_name + '.npy')[:, ::sample_rate]
         side_vid = torch.load(saved_video_tensors_path + seq_name + '_side.pt')  # side video setup
+        side_vid = img_normalizer(side_vid.float())
         top_vid = torch.load(saved_video_tensors_path + seq_name + '_top.pt')
+        top_vid = img_normalizer(top_vid.float())
         cutoff_length = min(features.shape[1], side_vid.shape[0], top_vid.shape[0])
         features = features[:, :cutoff_length]
         features = torch.from_numpy(features).float().unsqueeze(0)
@@ -135,14 +141,15 @@ class BatchGenerator(object):
             # convert_tensor = transforms.PILToTensor()
 
             for seq in batch:
-                # x = self.get_data(seq)      # FOR DEBUG ONLY
                 # reps = [len([t for t in self.frames_files if t.startswith(name)]) for name in set(['_'.join(s.split('_')[:2]) for s in self.frames_files])]
                 # assert all([x == 2 for x in reps])
                 seq_name = seq.split('.')[0]
                 features = np.load(self.features_path + seq_name + '.npy')
                 t0 = time.perf_counter()
                 side_vid = torch.load(self.saved_video_tensors_path + seq_name + '_side.pt')    # side video setup
+                side_vid = self.img_normalizer(side_vid.float())
                 top_vid = torch.load(self.saved_video_tensors_path + seq_name + '_top.pt')      # top video setup
+                # top_vid = self.img_normalizer(top_vid.float())
                 loading_time += time.perf_counter() - t0
 
                 if self.normalization == "Min-max":

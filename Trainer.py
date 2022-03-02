@@ -14,7 +14,10 @@ from datetime import datetime
 import tqdm
 
 from batch_gen import BatchGenerator
+import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 
+from smooth_loss import SmoothLoss
 
 class Trainer:
     def __init__(self, dim, num_classes_list,hidden_dim=64,dropout=0.4,num_layers=3, offline_mode=True, task="gestures", device="cuda",
@@ -27,10 +30,13 @@ class Trainer:
         self.debagging =debagging
         self.network = network
         self.device = device
-        self.ce = nn.CrossEntropyLoss(ignore_index=-100)
+        # self.ce = nn.CrossEntropyLoss(ignore_index=-100)
+        self.ce = SmoothLoss(lamb=0.15, tau=4)
         self.num_classes_list = num_classes_list
         self.task =task
         self.weights = [0, 0, 1] if task == 'multi-taks' else [1]
+        self.plot_gests_index = 0
+        self.plot_gests_every = 15
 
 
     def train(self, save_dir, batch_gen, num_epochs, batch_size, learning_rate, eval_dict, args):
@@ -59,15 +65,14 @@ class Trainer:
             n_tasks = 3 if self.task == 'multi-taks' else 1
             correct = np.zeros(n_tasks)
             total = np.zeros(n_tasks)
-            iterations = 6
-            iteration = 0
 
             while batch_gen.has_next():
                 batch_input, side_input, top_input, *batch_target_gestures, mask = batch_gen.next_batch(batch_size)
                 for i in range(len(batch_target_gestures)):
                     batch_target_gestures[i] = batch_target_gestures[i].to(self.device)
-                batch_input, side_input, top_input, mask = batch_input.to(self.device), side_input.to(self.device),\
-                                                           top_input.to(self.device), mask.to(self.device)
+                batch_input, mask = batch_input.to(self.device), mask.to(self.device)
+                if side_input is not None and top_input is not None:
+                    side_input, top_input = side_input.to(self.device), top_input.to(self.device)
 
                 optimizer.zero_grad()
                 lengths = torch.sum(mask[:, 0, :], dim=1).to(dtype=torch.int64).to(device='cpu')
@@ -123,6 +128,7 @@ class Trainer:
         return eval_results_list, train_results_list
 
     def evaluate(self, eval_dict, batch_gen):
+        plot_flag = False
         results = {}
         device = eval_dict["device"]
         features_path = eval_dict["features_path"]
@@ -134,6 +140,7 @@ class Trainer:
         with torch.no_grad():
             self.model.to(device)
             list_of_vids = batch_gen.list_of_valid_examples
+            # list_of_vids = batch_gen.list_of_train_examples[:1]
             recognition1_list = []
 
             for seq in list_of_vids:
@@ -142,7 +149,8 @@ class Trainer:
                 # features = features[:, ::sample_rate]
                 # input_x = torch.tensor(features, dtype=torch.float)
                 # input_x.unsqueeze_(0)
-                input_x = BatchGenerator.get_data(seq, features_path, BatchGenerator.saved_video_tensors_path, sample_rate)
+                input_x = BatchGenerator.get_data(seq, features_path, batch_gen.saved_video_tensors_path, sample_rate,
+                                                  batch_gen.img_normalizer)
                 # input_x = input_x.to(device)
                 input_x = [a.to(device) for a in input_x[:-1]] + [input_x[-1]]
                 predictions1 = self.model(*input_x)
@@ -151,6 +159,11 @@ class Trainer:
 
                 _, predicted1 = torch.max(predictions1[-1].data, 1)
                 predicted1 = predicted1.squeeze()
+                if plot_flag:
+                    self.plot_gests_index += 1
+                    if self.plot_gests_index % self.plot_gests_every == 0:
+                        self.plot_gestures(predicted1.tolist())
+                    plot_flag = False
 
 
                 recognition1 = []
@@ -170,5 +183,17 @@ class Trainer:
             self.model.train()
             return results
 
-
+    @staticmethod
+    def plot_gestures(gestures):
+        fig, axs = plt.subplots(1, 1)
+        label_color = {0: 'r', 1: 'g', 2: 'b', 3: 'c', 4: 'm', 5: 'y'}
+        colors = [label_color[gesture] for gesture in gestures]
+        segments = []
+        for i in range(len(colors)):
+            segments.append([(i, 1), (i + 1, 1)])
+        lc = LineCollection(segments, colors=colors, linewidths=100)
+        axs.add_collection(lc)
+        axs.set_xlim(0, len(colors))
+        axs.set_ylim(0.99, 1.01)
+        plt.show()
 

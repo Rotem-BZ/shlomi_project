@@ -38,7 +38,7 @@ class VTN(nn.Module):
             cfg (CfgNode): model building configs, details are in the
                 comments of the config file.
         """
-        embed_dim = 768
+        self.embed_dim = 24
         if cfg.MODEL.ARCH == "VIT":
             # self.backbone = vit_base_patch16_224(pretrained=cfg.VTN.PRETRAINED,
             #                                      num_classes=0,
@@ -52,7 +52,9 @@ class VTN(nn.Module):
             # self.backbone = DeiTModel.from_pretrained("facebook/deit-tiny-distilled-patch16-224", add_pooling_layer=False, image_size=64)
 
             self.backbone = models.resnet18(pretrained=True)
-            self.adjust_embed_dim = torch.nn.Linear(1000, embed_dim)
+            num_features = self.backbone.fc.in_features
+            self.backbone.fc = nn.Linear(num_features, self.embed_dim)
+            self.adjust_embed_dim = torch.nn.Linear(36, self.embed_dim)
 
         else:
             raise NotImplementedError(f"not supporting {cfg.MODEL.ARCH}")
@@ -63,7 +65,7 @@ class VTN(nn.Module):
         # self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim))
 
         self.temporal_encoder = vtn_helper.VTNLongformerModel(
-            embed_dim=embed_dim,
+            embed_dim=self.embed_dim,
             max_position_embeddings=cfg.VTN.MAX_POSITION_EMBEDDINGS,
             num_attention_heads=cfg.VTN.NUM_ATTENTION_HEADS,
             num_hidden_layers=cfg.VTN.NUM_HIDDEN_LAYERS,
@@ -89,15 +91,21 @@ class VTN(nn.Module):
         # position_ids = torch.arange(x.shape[1])     # x shape: (B, F, C, H, W)
 
         # spatial backbone
-        # B, C, F, H, W = x.shape
-        # x = x.permute(0, 2, 1, 3, 4)
-        B, F, C, H, W = x.shape
+        if back_bone:
+            x = x.permute(0, 2, 1, 3, 4)
+            B, F, C, H, W = x.shape
+            x = x.reshape(B * F, C, H, W)
+            x = self.backbone(x.float())
+            x = x.reshape(B, F, -1)
+        else:
+            x = self.adjust_embed_dim(x)
+
+        B, F, E = x.shape
         position_ids = torch.arange(F, device=device).expand(len(lengths), max(lengths))
         # position_ids = torch.arange(F).unsqueeze(0).expand(B, F)
-        x = x.reshape(B * F, C, H, W)
-        # x = self.backbone(x.float())[0]
-        x = self.backbone(x.float())
-        x = self.adjust_embed_dim(x)
+        # x = x.reshape(B * F, C, H, W)
+        # x = self.backbone(x.float())
+        # x = self.adjust_embed_dim(x)
         # print("x shape:", x.shape)
         # print("PASSED")
         # x = self.backbone(images=x.cpu(), return_tensors="pt")
