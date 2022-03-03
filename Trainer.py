@@ -1,5 +1,8 @@
 #Created by Adam Goldbraikh - Scalpel Lab Technion
 # parts of the code were adapted from: https://github.com/sj-li/MS-TCN2?utm_source=catalyzex.com
+import os
+
+import torch
 
 from model import *
 import sys
@@ -31,12 +34,16 @@ class Trainer:
         self.network = network
         self.device = device
         # self.ce = nn.CrossEntropyLoss(ignore_index=-100)
-        self.ce = SmoothLoss(lamb=0.15, tau=4)
+        # self.ce = SmoothLoss(lamb=0.15, tau=4)
+        self.ce = SmoothLoss(lamb=0.1, tau=3)
         self.num_classes_list = num_classes_list
         self.task =task
         self.weights = [0, 0, 1] if task == 'multi-taks' else [1]
+        self.manual_batch_size = 3
+        self.global_index = 0
         self.plot_gests_index = 0
-        self.plot_gests_every = 15
+        self.plot_gests_every = 1
+        self.best_evaluate_accuracy = 0
 
 
     def train(self, save_dir, batch_gen, num_epochs, batch_size, learning_rate, eval_dict, args):
@@ -86,9 +93,12 @@ class Trainer:
                     loss += weight * self.ce(p.transpose(2, 1).contiguous().view(-1, class_size), target.view(-1))
 
 
+                loss = loss / self.manual_batch_size
                 epoch_loss += loss.item()
                 loss.backward()
-                optimizer.step()
+                self.global_index += 1
+                if self.global_index % self.manual_batch_size:
+                    optimizer.step()
                 _, predicted1 = torch.max(predictions1[-1].data, 1)
                 for i in range(len(lengths)):
                     correct[-1] += (predicted1[i][:lengths[i]] == batch_target_gestures[-1][i][
@@ -129,6 +139,11 @@ class Trainer:
 
     def evaluate(self, eval_dict, batch_gen):
         plot_flag = False
+        save_model = False
+        model_save_path = '/home/student/code-rotem/model_weights'
+        if save_model and not os.path.isdir(model_save_path):
+            os.mkdir(model_save_path)
+        model_save_path = os.path.join(model_save_path, 'saved_model')
         results = {}
         device = eval_dict["device"]
         features_path = eval_dict["features_path"]
@@ -140,7 +155,7 @@ class Trainer:
         with torch.no_grad():
             self.model.to(device)
             list_of_vids = batch_gen.list_of_valid_examples
-            # list_of_vids = batch_gen.list_of_train_examples[:1]
+            # list_of_vids = batch_gen.list_of_train_examples[:3]
             recognition1_list = []
 
             for seq in list_of_vids:
@@ -177,6 +192,12 @@ class Trainer:
             results1, _ = metric_calculation(ground_truth_path=ground_truth_path_gestures,
                                              recognition_list=recognition1_list, list_of_videos=list_of_vids,
                                              suffix="gesture")
+            accuracy = results1['Acc gesture']
+            if accuracy > self.best_evaluate_accuracy:
+                print("new best accuracy:", accuracy)
+                self.best_evaluate_accuracy = accuracy
+                if save_model:
+                    torch.save(self.model.state_dict(), model_save_path)
             results.update(results1)
 
 
@@ -185,15 +206,16 @@ class Trainer:
 
     @staticmethod
     def plot_gestures(gestures):
-        fig, axs = plt.subplots(1, 1)
+        print("ARRIVED")
+        fig, ax = plt.subplots(1, 1)
         label_color = {0: 'r', 1: 'g', 2: 'b', 3: 'c', 4: 'm', 5: 'y'}
         colors = [label_color[gesture] for gesture in gestures]
         segments = []
         for i in range(len(colors)):
-            segments.append([(i, 1), (i + 1, 1)])
+            segments.append([(i, 0.5), (i + 1, 0.5)])
         lc = LineCollection(segments, colors=colors, linewidths=100)
-        axs.add_collection(lc)
-        axs.set_xlim(0, len(colors))
-        axs.set_ylim(0.99, 1.01)
+        ax.add_collection(lc)
+        ax.set_xlim(0, len(colors))
+        ax.get_yaxis().set_visible(False)
         plt.show()
 

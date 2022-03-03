@@ -24,7 +24,10 @@ class MT_RNN_dp(nn.Module):
         # self.top_network = vtn_model.VTN(video_nets_cfg)
         side_dim = self.side_network.embed_dim
         ################ LSTM through images ####################
-        input_dim = side_dim
+        # input_dim = side_dim
+        #########################################################
+        ################ backbone + kinematics concat ####################
+        input_dim = side_dim + input_dim
         #########################################################
         # The LSTM takes word embeddings as inputs, and outputs hidden states
         # with dimensionality hidden_dim.
@@ -41,7 +44,7 @@ class MT_RNN_dp(nn.Module):
         # The linear layer that maps from hidden state space to tag space
         kinematics_dim = hidden_dim * 2 if bidirectional else hidden_dim
         # overall_dim = kinematics_dim + side_dim
-        overall_dim = side_dim
+        overall_dim = kinematics_dim
 
         self.output_heads = nn.ModuleList([copy.deepcopy(
             nn.Sequential(
@@ -60,22 +63,30 @@ class MT_RNN_dp(nn.Module):
         # rnn_inpus = self.side_network(side_inputs, lengths)
         #########################################################
         ################ Longformer with kinematics ####################
-        rnn_inpus = self.side_network(rnn_inpus, lengths, back_bone=False)
-        rnn_inpus = rnn_inpus[:, :max(lengths), :]
-        z = rnn_inpus
+        # rnn_inpus = self.side_network(rnn_inpus, lengths, back_bone=False)
+        # rnn_inpus = rnn_inpus[:, :max(lengths), :]
+        # z = rnn_inpus
         #########################################################
 
-        # packed_input = pack_padded_sequence(rnn_inpus, lengths=lengths, batch_first=True, enforce_sorted=False)
-        # rnn_output, _ = self.rnn(packed_input)
-        #
-        # unpacked_rnn_out, unpacked_rnn_out_lengths = torch.nn.utils.rnn.pad_packed_sequence(rnn_output, padding_value=-1, batch_first=True)
-        # # flat_X = torch.cat([unpacked_ltsm_out[i, :lengths[i], :] for i in range(len(lengths))])
-        # unpacked_rnn_out = self.dropout(unpacked_rnn_out)
+        x = side_inputs
+        B, F, C, H, W = x.shape
+        x = x.permute(0, 2, 1, 3, 4)
+        x = x.reshape(B * F, C, H, W)
+        x = self.side_network.backbone(x.float())
+        x = x.reshape(B, F, -1)
+        rnn_inpus = torch.cat([rnn_inpus, x], dim=2)
 
+        packed_input = pack_padded_sequence(rnn_inpus, lengths=lengths, batch_first=True, enforce_sorted=False)
+        rnn_output, _ = self.rnn(packed_input)
+
+        unpacked_rnn_out, unpacked_rnn_out_lengths = torch.nn.utils.rnn.pad_packed_sequence(rnn_output, padding_value=-1, batch_first=True)
+        # flat_X = torch.cat([unpacked_ltsm_out[i, :lengths[i], :] for i in range(len(lengths))])
+        unpacked_rnn_out = self.dropout(unpacked_rnn_out)
+        #
         # side_out = self.side_network(side_inputs, lengths)
         # side_out = side_out[:, :unpacked_rnn_out.shape[1], :]
         # z = torch.cat([unpacked_rnn_out, side_out], dim=2)
-        # z = unpacked_rnn_out
+        z = unpacked_rnn_out
         # if self.z is not None:
         #     diff = torch.sum(torch.abs(z - self.z))
         #     print("diff=", diff, "shape=", z.shape, "avg. diff=", diff / (z.shape[0]*z.shape[1]*z.shape[2]))
@@ -94,8 +105,8 @@ class VideoNetsCFG:
         NUM_HIDDEN_LAYERS = 3
         ATTENTION_MODE = 'sliding_chunks'
         PAD_TOKEN_ID = -1
-        ATTENTION_WINDOW = [256, 256, 256]
-        INTERMEDIATE_SIZE = 3072
+        ATTENTION_WINDOW = [256, 256]
+        INTERMEDIATE_SIZE = 3072 // 2
         ATTENTION_PROBS_DROPOUT_PROB = 0.1
         HIDDEN_DROPOUT_PROB = 0.1
         PRETRAINED = False

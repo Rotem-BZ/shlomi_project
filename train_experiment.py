@@ -14,13 +14,13 @@ dt_string = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset',choices=['APAS'], default="APAS")
-parser.add_argument('--task',choices=['gestures'], default="gestures")
-# parser.add_argument('--task',choices=['gestures', 'multi-taks'], default="multi-taks")
+# parser.add_argument('--task',choices=['gestures'], default="gestures")
+parser.add_argument('--task',choices=['gestures', 'multi-taks'], default="multi-taks")
 parser.add_argument('--network',choices=['LSTM','GRU'], default="LSTM")
 parser.add_argument('--split',choices=['0', '1', '2', '3','4', 'all'], default='all')
 parser.add_argument('--features_dim', default='36', type=int)
 # parser.add_argument('--lr', default=0.00316227766, type=float)
-parser.add_argument('--lr', default=1e-5, type=float)
+parser.add_argument('--lr', default=1e-3, type=float)
 # parser.add_argument('--num_epochs', default=40, type=int)
 parser.add_argument('--num_epochs', default=2000, type=int)
 parser.add_argument('--eval_rate', default=1, type=int)
@@ -129,8 +129,8 @@ for split_num in list_of_splits:
         num_classes_tools = len(actions_dict_tools)
 
     num_classes_gestures = len(actions_dict_gestures)
-    num_classes_list = [num_classes_gestures]
-    # num_classes_list = [4, 4, num_classes_gestures]
+    # num_classes_list = [num_classes_gestures]
+    num_classes_list = [4, 4, num_classes_gestures]
 
     trainer = Trainer(features_dim, num_classes_list,hidden_dim=hidden_dim,dropout=dropout,num_layers=num_layers, offline_mode=offline_mode,task=args.task,device=device,network=args.network,debagging=debagging)
 

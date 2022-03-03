@@ -8,8 +8,7 @@ import matplotlib.pyplot as plt
 
 
 def main(images_new_size: tuple = (64, 64), save_folder: str = '/home/student/code-rotem/videos_dir/',
-         show_image_every: int = -1):
-    sample_rate = 6
+         show_image_every: int = -1, sample_rate: int = 6):
     frames_folder = "/datashare/APAS/frames"
     if not os.path.isdir(save_folder):
         os.mkdir(save_folder)

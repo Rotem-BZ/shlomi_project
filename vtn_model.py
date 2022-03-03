@@ -38,7 +38,7 @@ class VTN(nn.Module):
             cfg (CfgNode): model building configs, details are in the
                 comments of the config file.
         """
-        self.embed_dim = 24
+        self.embed_dim = 64*3
         if cfg.MODEL.ARCH == "VIT":
             # self.backbone = vit_base_patch16_224(pretrained=cfg.VTN.PRETRAINED,
             #                                      num_classes=0,
@@ -92,8 +92,8 @@ class VTN(nn.Module):
 
         # spatial backbone
         if back_bone:
-            x = x.permute(0, 2, 1, 3, 4)
             B, F, C, H, W = x.shape
+            x = x.permute(0, 2, 1, 3, 4)
             x = x.reshape(B * F, C, H, W)
             x = self.backbone(x.float())
             x = x.reshape(B, F, -1)
@@ -126,8 +126,8 @@ class VTN(nn.Module):
             position_ids,
             self.temporal_encoder.config.attention_window[0],
             self.temporal_encoder.config.pad_token_id)
-        token_type_ids = torch.zeros(x.size()[:-1], dtype=torch.long, device=device)
-        token_type_ids[:, 0] = 1
+        # token_type_ids = torch.zeros(x.size()[:-1], dtype=torch.long, device=device)
+        # token_type_ids[:, 0] = 1
 
         # position_ids
         position_ids = position_ids.long()
@@ -139,7 +139,7 @@ class VTN(nn.Module):
 
         x = self.temporal_encoder(input_ids=None,
                                   attention_mask=attention_mask,
-                                  token_type_ids=token_type_ids,
+                                  token_type_ids=None,
                                   position_ids=position_ids,
                                   inputs_embeds=x,
                                   output_attentions=None,

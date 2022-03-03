@@ -52,7 +52,7 @@ class BatchGenerator(object):
         self.read_data()
         self.normalization_params_read()
 
-        # self.list_of_train_examples = self.list_of_train_examples[:1]   # overfit assertion
+        # self.list_of_train_examples = self.list_of_train_examples[:3]   # overfit assertion
 
 
     def normalization_params_read(self):
