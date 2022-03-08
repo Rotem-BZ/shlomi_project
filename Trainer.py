@@ -38,8 +38,8 @@ class Trainer:
         self.ce = SmoothLoss(lamb=0.1, tau=3)
         self.num_classes_list = num_classes_list
         self.task =task
-        self.weights = [0, 0, 1] if task == 'multi-taks' else [1]
-        self.manual_batch_size = 3
+        self.weights = [1, 1, 1] if task == 'multi-taks' else [1]
+        self.manual_batch_size = 5
         self.global_index = 0
         self.plot_gests_index = 0
         self.plot_gests_every = 1
@@ -67,6 +67,8 @@ class Trainer:
         eval_rate = eval_dict["eval_rate"]
         optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         for epoch in range(num_epochs):
+            if epoch == 30:
+                self.weights = [0,0,1]
             pbar = tqdm.tqdm(total=number_of_batches)
             epoch_loss = 0
             n_tasks = 3 if self.task == 'multi-taks' else 1
@@ -139,7 +141,7 @@ class Trainer:
 
     def evaluate(self, eval_dict, batch_gen):
         plot_flag = False
-        save_model = False
+        save_model = True
         model_save_path = '/home/student/code-rotem/model_weights'
         if save_model and not os.path.isdir(model_save_path):
             os.mkdir(model_save_path)

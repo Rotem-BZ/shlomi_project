@@ -38,7 +38,7 @@ class VTN(nn.Module):
             cfg (CfgNode): model building configs, details are in the
                 comments of the config file.
         """
-        self.embed_dim = 64*3
+        self.embed_dim = 36
         if cfg.MODEL.ARCH == "VIT":
             # self.backbone = vit_base_patch16_224(pretrained=cfg.VTN.PRETRAINED,
             #                                      num_classes=0,
@@ -97,7 +97,7 @@ class VTN(nn.Module):
             x = x.reshape(B * F, C, H, W)
             x = self.backbone(x.float())
             x = x.reshape(B, F, -1)
-        else:
+        elif self.embed_dim != x.shape[-1]:
             x = self.adjust_embed_dim(x)
 
         B, F, E = x.shape

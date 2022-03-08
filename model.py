@@ -27,7 +27,7 @@ class MT_RNN_dp(nn.Module):
         # input_dim = side_dim
         #########################################################
         ################ backbone + kinematics concat ####################
-        input_dim = side_dim + input_dim
+        # input_dim = side_dim + input_dim
         #########################################################
         # The LSTM takes word embeddings as inputs, and outputs hidden states
         # with dimensionality hidden_dim.
@@ -46,13 +46,23 @@ class MT_RNN_dp(nn.Module):
         # overall_dim = kinematics_dim + side_dim
         overall_dim = kinematics_dim
 
+        # self.output_heads = nn.ModuleList([copy.deepcopy(
+        #     nn.Sequential(
+        #         nn.Linear(overall_dim, hidden_dim + overall_dim),
+        #         nn.Tanh(),
+        #         nn.Linear(hidden_dim + overall_dim, num_classes_list[s])
+        #     )
+        # ) for s in range(len(num_classes_list))])
+
         self.output_heads = nn.ModuleList([copy.deepcopy(
             nn.Sequential(
-                nn.Linear(overall_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, num_classes_list[s])
+                nn.Linear(overall_dim, num_classes_list[s])
             )
         ) for s in range(len(num_classes_list))])
+
+        # self.output_heads = nn.ModuleList([copy.deepcopy(
+        #     nn.Linear(hidden_dim * 2 if bidirectional else hidden_dim, num_classes_list[s]))
+        #     for s in range(len(num_classes_list))])
 
 
     def forward(self, rnn_inpus, side_inputs, top_inputs, lengths):
@@ -68,13 +78,14 @@ class MT_RNN_dp(nn.Module):
         # z = rnn_inpus
         #########################################################
 
-        x = side_inputs
-        B, F, C, H, W = x.shape
-        x = x.permute(0, 2, 1, 3, 4)
-        x = x.reshape(B * F, C, H, W)
-        x = self.side_network.backbone(x.float())
-        x = x.reshape(B, F, -1)
-        rnn_inpus = torch.cat([rnn_inpus, x], dim=2)
+        # x = side_inputs
+        # B, F, C, H, W = x.shape
+        # x = x.permute(0, 2, 1, 3, 4)
+        # x = x.reshape(B * F, C, H, W)
+        # x = self.side_network.backbone(x.float())
+        # x = x.reshape(B, F, -1)
+        # # rnn_inpus = torch.cat([rnn_inpus, x], dim=2)
+        # rnn_inpus = x
 
         packed_input = pack_padded_sequence(rnn_inpus, lengths=lengths, batch_first=True, enforce_sorted=False)
         rnn_output, _ = self.rnn(packed_input)
@@ -82,7 +93,7 @@ class MT_RNN_dp(nn.Module):
         unpacked_rnn_out, unpacked_rnn_out_lengths = torch.nn.utils.rnn.pad_packed_sequence(rnn_output, padding_value=-1, batch_first=True)
         # flat_X = torch.cat([unpacked_ltsm_out[i, :lengths[i], :] for i in range(len(lengths))])
         unpacked_rnn_out = self.dropout(unpacked_rnn_out)
-        #
+
         # side_out = self.side_network(side_inputs, lengths)
         # side_out = side_out[:, :unpacked_rnn_out.shape[1], :]
         # z = torch.cat([unpacked_rnn_out, side_out], dim=2)
@@ -105,8 +116,8 @@ class VideoNetsCFG:
         NUM_HIDDEN_LAYERS = 3
         ATTENTION_MODE = 'sliding_chunks'
         PAD_TOKEN_ID = -1
-        ATTENTION_WINDOW = [256, 256]
-        INTERMEDIATE_SIZE = 3072 // 2
+        ATTENTION_WINDOW = [36, 36]
+        INTERMEDIATE_SIZE = 3072
         ATTENTION_PROBS_DROPOUT_PROB = 0.1
         HIDDEN_DROPOUT_PROB = 0.1
         PRETRAINED = False

@@ -19,16 +19,16 @@ parser.add_argument('--task',choices=['gestures', 'multi-taks'], default="multi-
 parser.add_argument('--network',choices=['LSTM','GRU'], default="LSTM")
 parser.add_argument('--split',choices=['0', '1', '2', '3','4', 'all'], default='all')
 parser.add_argument('--features_dim', default='36', type=int)
-# parser.add_argument('--lr', default=0.00316227766, type=float)
-parser.add_argument('--lr', default=1e-3, type=float)
+parser.add_argument('--lr', default=0.00316227766, type=float)
+# parser.add_argument('--lr', default=1e-3, type=float)
 # parser.add_argument('--num_epochs', default=40, type=int)
 parser.add_argument('--num_epochs', default=2000, type=int)
 parser.add_argument('--eval_rate', default=1, type=int)
-parser.add_argument('--batch_size',default=1, type=int )
+parser.add_argument('--batch_size',default=1, type=int)
 
 parser.add_argument('--dropout', default=0.4, type=float)
-parser.add_argument('--num_layers',default =3, type=int )
-parser.add_argument('--hidden_dim',default =64, type=int )
+parser.add_argument('--num_layers',default =5, type=int )
+parser.add_argument('--hidden_dim',default =256, type=int )
 
 
 parser.add_argument('--normalization', choices=['none'], default='none', type=str)
@@ -37,7 +37,7 @@ parser.add_argument('--project', default="shlomi_project", type=str)
 parser.add_argument('--group', default=dt_string + " group ", type=str)
 parser.add_argument('--use_gpu_num',default ="0", type=str )
 parser.add_argument('--upload', default=True, type=bool)
-parser.add_argument('--debagging', default=True, type=bool)
+parser.add_argument('--debagging', default=False, type=bool)
 
 
 args = parser.parse_args()
