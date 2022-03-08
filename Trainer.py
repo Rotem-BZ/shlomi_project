@@ -26,19 +26,26 @@ class Trainer:
     def __init__(self, dim, num_classes_list,hidden_dim=64,dropout=0.4,num_layers=3, offline_mode=True, task="gestures", device="cuda",
                  network='LSTM',debagging=False):
 
+        self.model_type = 'B'
+        self.load_pretrained = True
+        pretrained_path = '/home/student/code-rotem/model_weights_' + self.model_type
+        self.pretrained_path = os.path.join(pretrained_path, 'saved_model')
         self.model = MT_RNN_dp(network, input_dim=dim, hidden_dim=hidden_dim, num_classes_list=num_classes_list,
-                            bidirectional=offline_mode, dropout=dropout,num_layers=num_layers)
+                            bidirectional=offline_mode, dropout=dropout,num_layers=num_layers,model_type=self.model_type)
+
+        if self.load_pretrained:
+            self.model.load_state_dict(torch.load(self.pretrained_path))
 
 
         self.debagging =debagging
         self.network = network
         self.device = device
-        # self.ce = nn.CrossEntropyLoss(ignore_index=-100)
-        # self.ce = SmoothLoss(lamb=0.15, tau=4)
-        self.ce = SmoothLoss(lamb=0.1, tau=3)
+        self.ce = SmoothLoss(lamb=0.1, tau=3) if self.model_type == 'B' else nn.CrossEntropyLoss(ignore_index=-100)
         self.num_classes_list = num_classes_list
         self.task =task
-        self.weights = [1, 1, 1] if task == 'multi-taks' else [1]
+        self.weights = [0, 0, 1] if task == 'multi-taks' else [1]
+        if self.model_type == 'B':
+            self.weights = [0.5, 0.5, 1]
         self.manual_batch_size = 5
         self.global_index = 0
         self.plot_gests_index = 0
@@ -67,7 +74,7 @@ class Trainer:
         eval_rate = eval_dict["eval_rate"]
         optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         for epoch in range(num_epochs):
-            if epoch == 30:
+            if epoch == 10:
                 self.weights = [0,0,1]
             pbar = tqdm.tqdm(total=number_of_batches)
             epoch_loss = 0
@@ -140,9 +147,9 @@ class Trainer:
         return eval_results_list, train_results_list
 
     def evaluate(self, eval_dict, batch_gen):
-        plot_flag = False
-        save_model = True
-        model_save_path = '/home/student/code-rotem/model_weights'
+        plot_flag = True
+        save_model = False
+        model_save_path = '/home/student/code-rotem/model_weights_' + self.model_type
         if save_model and not os.path.isdir(model_save_path):
             os.mkdir(model_save_path)
         model_save_path = os.path.join(model_save_path, 'saved_model')
@@ -156,8 +163,8 @@ class Trainer:
         self.model.eval()
         with torch.no_grad():
             self.model.to(device)
-            list_of_vids = batch_gen.list_of_valid_examples
-            # list_of_vids = batch_gen.list_of_train_examples[:3]
+            # list_of_vids = batch_gen.list_of_valid_examples
+            list_of_vids = batch_gen.list_of_train_examples[:1]
             recognition1_list = []
 
             for seq in list_of_vids:
@@ -179,7 +186,9 @@ class Trainer:
                 if plot_flag:
                     self.plot_gests_index += 1
                     if self.plot_gests_index % self.plot_gests_every == 0:
-                        self.plot_gestures(predicted1.tolist())
+                        *_, labels, s = batch_gen.next_batch(1)
+                        self.plot_gestures(labels.squeeze(0).tolist())
+                        # self.plot_gestures(predicted1.tolist())
                     plot_flag = False
 
 
@@ -208,7 +217,6 @@ class Trainer:
 
     @staticmethod
     def plot_gestures(gestures):
-        print("ARRIVED")
         fig, ax = plt.subplots(1, 1)
         label_color = {0: 'r', 1: 'g', 2: 'b', 3: 'c', 4: 'm', 5: 'y'}
         colors = [label_color[gesture] for gesture in gestures]
