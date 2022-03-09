@@ -24,9 +24,9 @@ from smooth_loss import SmoothLoss
 
 class Trainer:
     def __init__(self, dim, num_classes_list,hidden_dim=64,dropout=0.4,num_layers=3, offline_mode=True, task="gestures", device="cuda",
-                 network='LSTM',debagging=False):
+                 network='LSTM',debagging=False, model_type: str = 'B'):
 
-        self.model_type = 'B'
+        self.model_type = model_type
         self.load_pretrained = True
         pretrained_path = '/home/student/code-rotem/model_weights_' + self.model_type
         self.pretrained_path = os.path.join(pretrained_path, 'saved_model')
@@ -147,7 +147,7 @@ class Trainer:
         return eval_results_list, train_results_list
 
     def evaluate(self, eval_dict, batch_gen):
-        plot_flag = True
+        plot_flag = False
         save_model = False
         model_save_path = '/home/student/code-rotem/model_weights_' + self.model_type
         if save_model and not os.path.isdir(model_save_path):
@@ -163,8 +163,8 @@ class Trainer:
         self.model.eval()
         with torch.no_grad():
             self.model.to(device)
-            # list_of_vids = batch_gen.list_of_valid_examples
-            list_of_vids = batch_gen.list_of_train_examples[:1]
+            list_of_vids = batch_gen.list_of_valid_examples
+            # list_of_vids = batch_gen.list_of_train_examples[:1]
             recognition1_list = []
 
             for seq in list_of_vids:

@@ -38,6 +38,7 @@ parser.add_argument('--group', default=dt_string + " group ", type=str)
 parser.add_argument('--use_gpu_num',default ="0", type=str )
 parser.add_argument('--upload', default=True, type=bool)
 parser.add_argument('--debagging', default=True, type=bool)
+parser.add_argument('--model_type', default='A', type=str)
 
 
 args = parser.parse_args()
@@ -129,12 +130,11 @@ for split_num in list_of_splits:
         num_classes_tools = len(actions_dict_tools)
 
     num_classes_gestures = len(actions_dict_gestures)
-    # num_classes_list = [num_classes_gestures]
     num_classes_list = [4, 4, num_classes_gestures]
 
-    trainer = Trainer(features_dim, num_classes_list,hidden_dim=hidden_dim,dropout=dropout,num_layers=num_layers, offline_mode=offline_mode,task=args.task,device=device,network=args.network,debagging=debagging)
+    trainer = Trainer(features_dim, num_classes_list,hidden_dim=hidden_dim,dropout=dropout,num_layers=num_layers, offline_mode=offline_mode,task=args.task,device=device,network=args.network,debagging=debagging, model_type=args.model_type)
 
-    batch_gen = BatchGenerator(num_classes_gestures,num_classes_tools, actions_dict_gestures,actions_dict_tools,features_path,split_num,folds_folder,frames_folder,gt_path_gestures, gt_path_tools_left, gt_path_tools_right, sample_rate=sample_rate,normalization=args.normalization,task=args.task)
+    batch_gen = BatchGenerator(num_classes_gestures,num_classes_tools, actions_dict_gestures,actions_dict_tools,features_path,split_num,folds_folder,frames_folder,gt_path_gestures, gt_path_tools_left, gt_path_tools_right, sample_rate=sample_rate,normalization=args.normalization,task=args.task, model_type=args.model_type)
     eval_dict ={"features_path":features_path,"actions_dict_gestures": actions_dict_gestures, "actions_dict_tools":actions_dict_tools, "device":device, "sample_rate":sample_rate,"eval_rate":eval_rate,
                 "gt_path_gestures":gt_path_gestures, "gt_path_tools_left":gt_path_tools_left, "gt_path_tools_right":gt_path_tools_right,"task":args.task}
     eval_results, train_results = trainer.train(model_dir, batch_gen, num_epochs=num_epochs, batch_size=bz, learning_rate=lr,eval_dict=eval_dict,args=args)

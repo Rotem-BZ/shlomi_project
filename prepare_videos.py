@@ -46,5 +46,4 @@ def main(images_new_size: tuple = (64, 64), save_folder: str = '/home/student/co
 
 
 if __name__ == '__main__':
-    main(images_new_size=(224, 224), save_folder='/home/student/code-rotem/videos_dir224/', show_image_every=-1)
-    main(images_new_size=(128, 128), save_folder='/home/student/code-rotem/videos_dir128/', show_image_every=-1)
+    main()

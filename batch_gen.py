@@ -14,7 +14,7 @@ from torchvision import transforms
 class BatchGenerator(object):
     saved_video_tensors_path = '/home/student/code-rotem/videos_dir/'
     img_normalizer = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    def __init__(self, num_classes_gestures,num_classes_tools, actions_dict_gestures,actions_dict_tools,features_path,split_num,folds_folder,frames_folder,gt_path_gestures=None, gt_path_tools_left=None, gt_path_tools_right=None, sample_rate=1,normalization="None",task="gestures"):
+    def __init__(self, num_classes_gestures,num_classes_tools, actions_dict_gestures,actions_dict_tools,features_path,split_num,folds_folder,frames_folder,gt_path_gestures=None, gt_path_tools_left=None, gt_path_tools_right=None, sample_rate=1,normalization="None",task="gestures", model_type='B'):
         """
         
         :param num_classes_gestures: 
@@ -32,6 +32,7 @@ class BatchGenerator(object):
         ## https://en.wikipedia.org/wiki/Normalization_(statistics)
         """""
         self.task =task
+        self.model_type = model_type
         self.normalization = normalization
         self.folds_folder = folds_folder
         self.frames_folder = frames_folder
@@ -52,7 +53,7 @@ class BatchGenerator(object):
         self.read_data()
         self.normalization_params_read()
 
-        self.list_of_train_examples = self.list_of_train_examples[:1]   # overfit assertion
+        # self.list_of_train_examples = self.list_of_train_examples[:1]   # overfit assertion
 
 
     def normalization_params_read(self):
@@ -146,9 +147,12 @@ class BatchGenerator(object):
                 seq_name = seq.split('.')[0]
                 features = np.load(self.features_path + seq_name + '.npy')
                 t0 = time.perf_counter()
-                side_vid = torch.load(self.saved_video_tensors_path + seq_name + '_side.pt')    # side video setup
-                side_vid = self.img_normalizer(side_vid.float())
-                top_vid = torch.load(self.saved_video_tensors_path + seq_name + '_top.pt')      # top video setup
+                if self.model_type == 'B':
+                    side_vid, top_vid = None, None
+                else:
+                    side_vid = torch.load(self.saved_video_tensors_path + seq_name + '_side.pt')    # side video setup
+                    side_vid = self.img_normalizer(side_vid.float())
+                    top_vid = torch.load(self.saved_video_tensors_path + seq_name + '_top.pt')      # top video setup
                 # top_vid = self.img_normalizer(top_vid.float())
                 loading_time += time.perf_counter() - t0
 
@@ -281,17 +285,23 @@ class BatchGenerator(object):
                 length_of_sequences_left = np.expand_dims(np.array( list(map(len, batch_target_left))),1)
                 length_of_sequences_right = np.expand_dims(np.array( list(map(len, batch_target_right))),1)
                 length_of_sequences_gestures = np.expand_dims(np.array( list(map(len, batch_target_gestures))),1)
-                length_of_sequences_side = np.array([x.shape[0] for x in side_vids]).reshape(-1, 1)
-                length_of_sequences_top = np.array([x.shape[0] for x in top_vids]).reshape(-1,1)
-                tup = (length_of_sequences_left, length_of_sequences_right, length_of_sequences_gestures,
-                       length_of_sequences_side, length_of_sequences_top)
+                if self.model_type == 'B':
+                    tup = (length_of_sequences_left, length_of_sequences_right, length_of_sequences_gestures)
+                else:
+                    length_of_sequences_side = np.array([x.shape[0] for x in side_vids]).reshape(-1, 1)
+                    length_of_sequences_top = np.array([x.shape[0] for x in top_vids]).reshape(-1,1)
+                    tup = (length_of_sequences_left, length_of_sequences_right, length_of_sequences_gestures,
+                           length_of_sequences_side, length_of_sequences_top)
 
 
                 length_of_sequences = list(np.min(np.concatenate(tup,1),1))
-                side_vids = [side_vids[i][:length_of_sequences[i], ...] for i in range(len(side_vids))]
-                top_vids = [top_vids[i][:length_of_sequences[i], ...] for i in range(len(top_vids))]
-                batch_side_input = torch.nn.utils.rnn.pad_sequence(side_vids, batch_first=True)
-                batch_top_input = torch.nn.utils.rnn.pad_sequence(top_vids, batch_first=True)
+                if self.model_type == 'B':
+                    batch_side_input, batch_top_input = None, None
+                else:
+                    side_vids = [side_vids[i][:length_of_sequences[i], ...] for i in range(len(side_vids))]
+                    top_vids = [top_vids[i][:length_of_sequences[i], ...] for i in range(len(top_vids))]
+                    batch_side_input = torch.nn.utils.rnn.pad_sequence(side_vids, batch_first=True)
+                    batch_top_input = torch.nn.utils.rnn.pad_sequence(top_vids, batch_first=True)
                 max_len = max(length_of_sequences)
 
                 batch_input_tensor = torch.zeros(len(batch_input), np.shape(batch_input[0])[0], max_len, dtype=torch.float)
